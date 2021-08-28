@@ -180,6 +180,7 @@ function getRoles(container, {hidden = false} = {}) {
 
 function prettyRoles(dom, {hidden}) {
   const roles = getRoles(dom, {hidden})
+
   // We prefer to skip generic role, we don't recommend it
   return Object.entries(roles)
     .filter(([role]) => role !== 'generic')

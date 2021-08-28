@@ -42,6 +42,7 @@ function queryAllByRole(
   } = {},
 ) {
   checkContainerType(container)
+  
   const matcher = exact ? matches : fuzzyMatches
   const matchNormalizer = makeNormalizer({collapseWhitespace, trim, normalizer})
 
@@ -99,33 +100,47 @@ function queryAllByRole(
     return subtreeIsInaccessibleCache.get(element)
   }
 
-  return Array.from(container.querySelectorAll('*'))
-    .filter(node => {
-      const isRoleSpecifiedExplicitly = node.hasAttribute('role')
 
-      if (isRoleSpecifiedExplicitly) {
-        const roleValue = node.getAttribute('role')
-        if (queryFallbacks) {
-          return roleValue
-            .split(' ')
-            .filter(Boolean)
-            .some(text => matcher(text, node, role, matchNormalizer))
-        }
-        // if a custom normalizer is passed then let normalizer handle the role value
-        if (normalizer) {
-          return matcher(roleValue, node, role, matchNormalizer)
-        }
-        // other wise only send the first word to match
-        const [firstWord] = roleValue.split(' ')
-        return matcher(firstWord, node, role, matchNormalizer)
+
+  const els = container.querySelectorAll('*')
+
+  console.time('array.from')
+  const elsArr = Array.from(els)
+  console.timeEnd('array.from')
+
+  console.time('firstFilter')
+  const firstFilter = elsArr
+  .filter(node => {
+    const isRoleSpecifiedExplicitly = node.hasAttribute('role')
+
+
+    if (isRoleSpecifiedExplicitly) {
+      const roleValue = node.getAttribute('role')
+      if (queryFallbacks) {
+        return roleValue
+          .split(' ')
+          .filter(Boolean)
+          .some(text => matcher(text, node, role, matchNormalizer))
       }
+      // if a custom normalizer is passed then let normalizer handle the role value
+      if (normalizer) {
+        return matcher(roleValue, node, role, matchNormalizer)
+      }
+      // other wise only send the first word to match
+      const [firstWord] = roleValue.split(' ')
+      return matcher(firstWord, node, role, matchNormalizer)
+    }
 
-      const implicitRoles = getImplicitAriaRoles(node)
+    const implicitRoles = getImplicitAriaRoles(node)
 
-      return implicitRoles.some(implicitRole =>
-        matcher(implicitRole, node, role, matchNormalizer),
-      )
-    })
+    return implicitRoles.some(implicitRole =>
+      matcher(implicitRole, node, role, matchNormalizer),
+    )
+  })
+  console.timeEnd('firstFilter')
+  console.time('secondFilter')
+
+  const secondFilter = firstFilter
     .filter(element => {
       if (selected !== undefined) {
         return selected === computeAriaSelected(element)
@@ -148,13 +163,22 @@ function queryAllByRole(
       // don't care if aria attributes are unspecified
       return true
     })
-    .filter(element => {
+    console.timeEnd('secondFilter')
+
+
+    console.time('thirdFilter')
+
+    const thirdFilter = secondFilter.filter(element => {
       return hidden === false
         ? isInaccessible(element, {
             isSubtreeInaccessible: cachedIsSubtreeInaccessible,
           }) === false
         : true
     })
+    console.timeEnd('thirdFilter')
+    console.time('fourthFilter')
+
+    const fourthFilter = thirdFilter
     .filter(element => {
       if (name === undefined) {
         // Don't care
@@ -171,6 +195,11 @@ function queryAllByRole(
         text => text,
       )
     })
+
+    console.timeEnd('fourthFilter')
+
+
+    return fourthFilter;
 }
 
 const getMultipleError = (c, role, {name} = {}) => {
